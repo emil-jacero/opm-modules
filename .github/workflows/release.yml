@@ -1,0 +1,263 @@
+name: Release
+
+# Versions are decided by release-please, per module, from conventional
+# commits. release-please writes CHANGELOGs and .release-please-manifest.json
+# and NOTHING else — the only writer of identity/identity.cue is `opm module
+# version set`, run by the advance step below. An x-release-please-version
+# annotation pointed at identity.cue would make release-please a second writer,
+# which is the drift this layout avoids.
+#
+# The publish job runs on every push to main as well as on dispatch. The sweep
+# is idempotent by construction: it filters caller-side to modules whose
+# declared version the registry does not already hold, so running it on every
+# commit changes nothing. This pipeline is a copy of
+# open-platform-model/modules' release workflow with one train and one
+# namespace (jacero.se/modules/<name>, published to ghcr.io/emil-jacero).
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run every gate without pushing'
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Pinned OPM CLI release used for identity writes and publishing; bump
+  # deliberately, never float.
+  OPM_CLI_VERSION: 'v1.0.0-alpha.19'
+  # BOTH are required: `cue` reads CUE_REGISTRY, `opm` reads OPM_REGISTRY
+  # (--registry > OPM_REGISTRY > ~/.opm/config.cue — never CUE_REGISTRY).
+  # With only CUE_REGISTRY set, opm falls through to the runner's personal
+  # config, which happens to work on a bare runner and misleads everywhere else.
+  OPM_REGISTRY: 'jacero.se=ghcr.io/emil-jacero,opmodel.dev=ghcr.io/open-platform-model,registry.cue.works'
+  CUE_REGISTRY: 'jacero.se=ghcr.io/emil-jacero,opmodel.dev=ghcr.io/open-platform-model,registry.cue.works'
+  CUE_VERSION: 'v0.17.1'
+  # Modules whose language.version doesn't match this prefix are not on this
+  # fleet's toolchain and fail the run.
+  CUE_LANGUAGE_PREFIX: 'v0.17'
+  # GHCR owner the jacero.se/* packages live under.
+  ORG: 'emil-jacero'
+
+jobs:
+  release-please:
+    name: Release Please
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Clone the code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install opm
+        run: |
+          set -euo pipefail
+          base="https://github.com/open-platform-model/cli/releases/download/${OPM_CLI_VERSION}"
+          curl -fsSLO --retry 5 --retry-all-errors --retry-delay 2 "${base}/opm-linux-amd64.tar.gz"
+          curl -fsSLO --retry 5 --retry-all-errors --retry-delay 2 "${base}/checksums.txt"
+          grep ' opm-linux-amd64.tar.gz$' checksums.txt | sha256sum -c -
+          tar -xzf opm-linux-amd64.tar.gz opm
+          sudo install -m 0755 opm /usr/local/bin/opm
+          rm -f opm opm-linux-amd64.tar.gz checksums.txt LICENSE
+
+      # release-please decides the version; opm writes it. The manifest on the
+      # release branch is the source, so this converges even when release-please
+      # force-updates the branch: the next push to main re-runs the advance.
+      # With separate-pull-requests false there is ONE combined release branch
+      # carrying every bumped module, so this loops the manifest.
+      - name: Advance identity.Version on the release PR
+        run: |
+          set -euo pipefail
+          BRANCH="release-please--branches--main"
+          if ! git fetch origin "$BRANCH" 2>/dev/null; then
+            echo "no open release branch - nothing to advance"
+            exit 0
+          fi
+          git checkout -B "$BRANCH" FETCH_HEAD
+          # `version set` is idempotent by contract — it does not write when the
+          # value already matches — so this runs unconditionally over every
+          # module and lets `git diff` decide whether anything moved. That keeps
+          # the step free of a CUE toolchain: opm and jq are all it needs.
+          while read -r module version; do
+            [ -d "${module}/identity" ] || continue
+            opm module version set "$version" "./${module}"
+          done < <(jq -r 'to_entries[] | "\(.key) \(.value)"' .release-please-manifest.json)
+          if git diff --quiet; then
+            echo "every module's identity.Version already matches the manifest"
+            exit 0
+          fi
+          echo "advancing:"
+          git diff --name-only
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ./*/identity/identity.cue
+          git commit -m "chore: advance identity.Version to the released versions"
+          git push origin "$BRANCH"
+
+  publish:
+    name: Publish modules
+    # Runs on push and on dispatch. Publishing what is already published is
+    # not a no-op but a refusal, so the sweep filters first — which is
+    # what makes an unconditional run safe.
+    runs-on: ubuntu-latest
+    # Publishes an OCI artifact; it neither commits nor opens a PR.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Clone the code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install CUE
+        run: |
+          set -euo pipefail
+          go install "cuelang.org/go/cmd/cue@${CUE_VERSION}"
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+
+      - name: Install opm
+        run: |
+          set -euo pipefail
+          base="https://github.com/open-platform-model/cli/releases/download/${OPM_CLI_VERSION}"
+          curl -fsSLO --retry 5 --retry-all-errors --retry-delay 2 "${base}/opm-linux-amd64.tar.gz"
+          curl -fsSLO --retry 5 --retry-all-errors --retry-delay 2 "${base}/checksums.txt"
+          grep ' opm-linux-amd64.tar.gz$' checksums.txt | sha256sum -c -
+          tar -xzf opm-linux-amd64.tar.gz opm
+          sudo install -m 0755 opm /usr/local/bin/opm
+          rm -f opm opm-linux-amd64.tar.gz checksums.txt LICENSE
+
+      - name: Discover modules
+        id: discover
+        run: |
+          set -euo pipefail
+          MODULES=""
+          for dir in */; do
+            name="${dir%/}"
+            [ -d "${name}/cue.mod" ] || continue
+            if [ ! -d "${name}/identity" ]; then
+              echo "::warning::${name}: no identity package — skipped (it cannot declare a version)"
+              continue
+            fi
+            lv=$(sed -n '/^language:/,/}/{s/.*version:[[:space:]]*"\([^"]*\)".*/\1/p;}' "${name}/cue.mod/module.cue" | head -1)
+            case "$lv" in
+              "${CUE_LANGUAGE_PREFIX}"*) : ;;
+              *)
+                echo "::error::${name}: language.version ${lv:-<missing>} does not match this fleet's toolchain (${CUE_LANGUAGE_PREFIX}.x)."
+                exit 1
+                ;;
+            esac
+            MODULES="${MODULES} ${name}"
+          done
+          MODULES="${MODULES# }"
+          echo "modules=${MODULES}" >> "$GITHUB_OUTPUT"
+          echo "Found modules: ${MODULES}"
+
+
+      - name: Login to GHCR
+        # opm's push path reads the docker credential chain — docker login is
+        # the CI credential entry (`opm registry login` is interactive-only).
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      # The sweep. Publish itself NEVER skips — an already-published tag is
+      # always a refusal — so idempotency is this caller-side
+      # filter: a registry lookup, so nothing is predicted and no ledger is
+      # consulted. Running this twice, or on every commit, changes nothing.
+      - name: Publish modules
+        run: |
+          set -euo pipefail
+
+          # GHCR's /v2/ API rejects HTTP Basic auth (401) — it only accepts a
+          # bearer token from the token endpoint. Probing with `curl -u` always
+          # 401s, which silently reads as "unpublished" and re-publishes every
+          # module on every run. Exchange credentials for a scoped pull token,
+          # then treat only 404 as "not published"; any other status is a broken
+          # probe and must fail the run rather than trigger a bogus republish.
+          version_published() {
+            local repo="$1" tag="$2" base token code
+            base="${ORG}/jacero.se/modules/${repo}"
+
+            token=$(curl -fsS --retry 3 \
+              -u "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
+              "https://ghcr.io/token?service=ghcr.io&scope=repository:${base}:pull" \
+              | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+            if [ -z "$token" ]; then
+              echo "::error::${repo}: could not obtain a GHCR pull token"
+              exit 1
+            fi
+
+            code=$(curl -sS --retry 3 -o /dev/null -w '%{http_code}' --head \
+              -H "Authorization: Bearer ${token}" \
+              -H "Accept: application/vnd.oci.image.manifest.v1+json,*/*" \
+              "https://ghcr.io/v2/${base}/manifests/${tag}")
+
+            case "$code" in
+              200) return 0 ;;
+              404) return 1 ;;
+              *)
+                echo "::error::${repo}@${tag}: unexpected status ${code} from ghcr.io/v2/${base}/manifests/${tag}"
+                exit 1
+                ;;
+            esac
+          }
+
+          # The GHCR repository name is the module path's leaf, which may
+          # differ from the directory name.
+          module_leaf_from_cue() {
+            local name="$1"
+            grep -E '^module:' "${name}/cue.mod/module.cue" \
+              | head -1 \
+              | sed -E 's|.*/([^/@"]+)@.*|\1|'
+          }
+
+          # Each module publishes independently so one failure does not abort
+          # the rest; failures are recorded and the job exits non-zero at the end.
+          failed=""
+          published=""
+          for name in ${{ steps.discover.outputs.modules }}; do
+            version=$(cd "$name" && cue eval ./identity --out text -e Version)
+            leaf=$(module_leaf_from_cue "$name")
+            tag="v${version}"
+
+            if version_published "$leaf" "$tag"; then
+              echo "==> ${name}: ${tag} already published — skipped by the caller-side filter"
+              continue
+            fi
+
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "==> ${name}: dry-run at ${tag}"
+              if ! opm module publish --dry-run "./${name}"; then
+                failed="${failed} ${name}"
+              fi
+              continue
+            fi
+
+            echo "==> ${name}: publishing ${tag}"
+            if opm module publish "./${name}"; then
+              published="${published} ${name}:${tag}"
+            else
+              failed="${failed} ${name}"
+            fi
+          done
+
+          echo "published:${published:- none}"
+          if [ -n "$failed" ]; then
+            echo "::error::failed:${failed}"
+            exit 1
+          fi

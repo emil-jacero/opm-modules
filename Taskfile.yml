@@ -1,0 +1,60 @@
+version: "3"
+
+silent: true
+
+vars:
+  # Canonical mapping (CLAUDE.md § Registry): this fleet publishes under
+  # jacero.se/* to ghcr.io/emil-jacero; its core and catalog deps resolve
+  # opmodel.dev/* from ghcr.io/open-platform-model. Everything else falls
+  # through to the public CUE registry.
+  CANONICAL_REGISTRY: "jacero.se=ghcr.io/emil-jacero,opmodel.dev=ghcr.io/open-platform-model,registry.cue.works"
+  CUE_CACHE_DIR: "{{.TASKFILE_DIR}}/../.cue-cache"
+
+env:
+  CUE_REGISTRY: "{{.CANONICAL_REGISTRY}}"
+  CUE_CACHE_DIR: "{{.CUE_CACHE_DIR}}"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  fmt:
+    desc: Format all CUE modules
+    cmds:
+      - |
+        for dir in "{{.TASKFILE_DIR}}"/*/; do
+          [ -d "$dir/cue.mod" ] || continue
+          echo "fmt: $(basename "$dir")"
+          (cd "$dir" && cue fmt ./...)
+        done
+
+  vet:
+    desc: Validate all CUE modules
+    vars:
+      CONCRETE: '{{.CONCRETE | default "false"}}'
+      VET_FLAGS: '{{if eq .CONCRETE "true"}}-c{{end}}'
+    cmds:
+      - |
+        for dir in "{{.TASKFILE_DIR}}"/*/; do
+          [ -d "$dir/cue.mod" ] || continue
+          echo "vet: $(basename "$dir")"
+          (cd "$dir" && cue vet {{.VET_FLAGS}} ./...)
+        done
+
+  tidy:
+    desc: Tidy all CUE module dependencies
+    cmds:
+      - |
+        for dir in "{{.TASKFILE_DIR}}"/*/; do
+          [ -d "$dir/cue.mod" ] || continue
+          echo "tidy: $(basename "$dir")"
+          (cd "$dir" && cue mod tidy)
+        done
+
+  check:
+    desc: Format and validate all CUE modules
+    cmds:
+      - task: fmt
+      - task: vet

@@ -1,0 +1,14 @@
+{
+  "fileflows": "1.0.0",
+  "intel_gpu_device_plugin": "1.0.0",
+  "intel_gpu_exporter": "1.0.0",
+  "jellyfin": "1.0.0",
+  "jellystat": "1.0.0",
+  "jellyswarrm": "1.0.0",
+  "nvidia_device_plugin": "1.0.0",
+  "nvidia_gpu_exporter": "1.0.0",
+  "radarr": "1.0.0",
+  "sabnzbd": "1.0.0",
+  "seerr": "1.0.0",
+  "sonarr": "1.0.0"
+}
