@@ -15,4 +15,4 @@ ModulePath: "jacero.se/modules/fileflows@v1"
 // A concrete literal, never a defaulted disjunction: the kernel's loader gate
 // requires a value, and core's #IdentityPackage (which publish unifies this
 // package against) supplies the SemVer constraint.
-Version: "1.0.0"
+Version: "1.0.1"
