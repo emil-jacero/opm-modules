@@ -77,8 +77,9 @@ major moves only for a breaking change to its own `#config` or rendered objects.
   it on the release PR). Never hand-edit the version and never put a literal version in
   `module.cue`.
 - Dependency pins in `cue.mod/module.cue` move only through `cue mod get <path>@vN` followed by
-  `cue mod tidy` inside the module, never by hand. This repo is not covered by the workspace-root
-  `task deps:update`; a fleet-wide bump is that pair of commands run per module.
+  `cue mod tidy` inside the module, never by hand. A fleet-wide bump is the workspace-root
+  `task deps:update` (which runs that pair per module) committed as `fix(deps)`; because `main`
+  publishes on push, that one commit releases and republishes every module.
 - Validate with `task check` and `opm module publish --dry-run ./<name>` before committing.
 
 ## Entrypoint
