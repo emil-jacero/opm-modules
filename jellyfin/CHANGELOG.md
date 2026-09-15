@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/emil-jacero/opm-modules/compare/modules/jellyfin/v1.0.1...modules/jellyfin/v1.0.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* **deps:** bump catalog pin to opm 4.3.1 ([82adfe6](https://github.com/emil-jacero/opm-modules/commit/82adfe681b0677d2ee772784582f4d734fa268d7))
+
 ## [1.0.1](https://github.com/emil-jacero/opm-modules/compare/modules/jellyfin/v1.0.0...modules/jellyfin/v1.0.1) (2026-09-14)
 
 
