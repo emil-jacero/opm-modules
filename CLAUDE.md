@@ -188,6 +188,12 @@ Run all commands from the repo root.
 - `!` for required, `?` for optional fields, `*` for explicit defaults.
 - Pin `language: version: "v0.17.0"` in `cue.mod/module.cue`; CI refuses any other minor.
 
+### No enhancement references in module comments
+
+A module in this repo is authored, published and read by people who have no access to the OPM `enhancements/` repo, so a comment citing `0010:D8` or "enhancement 0011" tells them nothing they can look up. State the rule itself instead: "name is the path's leaf", not "name is the path's leaf (0010:D8)".
+
+This is a hard rule here, unlike `core`, `cli`, `library` and `opm-operator`, where a reference is allowed in a `// WHY` block or a Go doc comment because the reader can open the entry. Scaffolded modules inherit their headers from the CLI templates, which carry no reference either: if a fresh `opm module init` tree ever arrives with one, strip it rather than copying it forward.
+
 ## Commits and Releases
 
 - Conventional commits, scope is the module directory: `feat(jellyfin): …`, `fix(radarr): …`.

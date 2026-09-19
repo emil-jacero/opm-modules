@@ -47,7 +47,7 @@ m.#Module
 
 // Module metadata — modulePath is the COMPLETE CUE module path including the
 // major, byte-identical to cue.mod's module field and identity/identity.cue;
-// fqn/registryPath/uuid derive from it (enhancement 0010).
+// fqn/registryPath/uuid derive from it.
 metadata: {
 	name:        "nvidia_device_plugin"
 	modulePath:  id.ModulePath
