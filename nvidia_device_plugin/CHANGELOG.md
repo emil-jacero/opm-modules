@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/emil-jacero/opm-modules/compare/modules/nvidia_device_plugin/v1.0.1...modules/nvidia_device_plugin/v1.0.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* **deps:** bump catalog pin to opm 4.3.1 ([82adfe6](https://github.com/emil-jacero/opm-modules/commit/82adfe681b0677d2ee772784582f4d734fa268d7))
+* **deps:** bump core to 2.0.0-alpha.10 and catalogs/opm to 4.4.0 ([109b344](https://github.com/emil-jacero/opm-modules/commit/109b3440e39df1f596750bc5e5e569c989be1fdf))
+
 ## [1.0.1](https://github.com/emil-jacero/opm-modules/compare/modules/nvidia_device_plugin/v1.0.0...modules/nvidia_device_plugin/v1.0.1) (2026-09-14)
 
 
