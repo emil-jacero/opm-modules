@@ -3,7 +3,7 @@ version: "3"
 silent: true
 
 vars:
-  # Canonical mapping (CLAUDE.md § Registry): this fleet publishes under
+  # Canonical mapping (AGENTS.md § Registry): this fleet publishes under
   # jacero.se/* to ghcr.io/emil-jacero; its core and catalog deps resolve
   # opmodel.dev/* from ghcr.io/open-platform-model. Everything else falls
   # through to the public CUE registry.

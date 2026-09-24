@@ -33,7 +33,7 @@ The same mapping goes into an opm-operator `--registry` flag or `~/.opm/config.c
 
 ## Working here
 
-- `CLAUDE.md` — repo working rules (read first).
+- `AGENTS.md` — repo working rules (read first).
 - `DESIGN_PATTERNS.md` — reusable CUE patterns across modules.
 - `Taskfile.yml` — `task fmt` / `task vet` / `task tidy` / `task check`. There is no publish
   task: publishing is CI's, through `opm module publish` on every push to `main`.
