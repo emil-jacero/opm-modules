@@ -1,14 +1,14 @@
 {
-  "fileflows": "1.0.1",
-  "intel_gpu_device_plugin": "1.0.1",
-  "intel_gpu_exporter": "1.0.1",
-  "jellyfin": "1.0.1",
-  "jellystat": "1.0.1",
-  "jellyswarrm": "1.0.1",
-  "nvidia_device_plugin": "1.0.1",
-  "nvidia_gpu_exporter": "1.0.1",
-  "radarr": "1.0.1",
-  "sabnzbd": "1.0.1",
-  "seerr": "1.0.1",
-  "sonarr": "1.0.1"
+  "fileflows": "1.0.2",
+  "intel_gpu_device_plugin": "1.0.2",
+  "intel_gpu_exporter": "1.0.2",
+  "jellyfin": "1.0.2",
+  "jellystat": "1.0.2",
+  "jellyswarrm": "1.0.2",
+  "nvidia_device_plugin": "1.0.2",
+  "nvidia_gpu_exporter": "1.0.2",
+  "radarr": "1.0.2",
+  "sabnzbd": "1.0.2",
+  "seerr": "1.0.2",
+  "sonarr": "1.0.2"
 }
